@@ -1,5 +1,11 @@
-# Cached python files
+# Python cache files
 __pycache__/
+
+# Test files
+.pytest_cache/
+
+# Builds
+*.egg-info/
 
 # Virtual environment
 venv/
