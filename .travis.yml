@@ -3,8 +3,8 @@ language: python
 python:
 - 3.5
 - 3.6
-- 3.7
-- pypy
+- 3.7-dev
+- pypy3.5
 
 cache:
   pip: true
@@ -34,3 +34,8 @@ jobs:
         distributions: sdist bdist_wheel
         skip_existing: true
       python: 3.7
+
+stages:
+- Lint
+- Test
+- Deploy
