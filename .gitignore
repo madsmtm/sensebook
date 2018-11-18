@@ -7,6 +7,8 @@ __pycache__/
 
 # Builds
 *.egg-info/
+build/
+dist/
 
 # Virtual environment
 venv/
