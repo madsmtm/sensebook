@@ -27,6 +27,7 @@ jobs:
     env: TOXENV=pypy3
 
   - stage: Deploy
+    if: branch = master and tag IS present
     name: Github Releases
     install: skip
     script: python setup.py sdist bdist_wheel
@@ -36,8 +37,6 @@ jobs:
       file_glob: true
       file: dist/*
       skip_cleanup: true
-      on:
-        tags: true
 
   - name: PyPI
     script: skip
@@ -47,8 +46,6 @@ jobs:
       password: $PYPI_PASSWORD
       distributions: sdist bdist_wheel
       skip_existing: true
-      on:
-        tags: true
 
 after_failure:
 - more .tox/log/* | cat
