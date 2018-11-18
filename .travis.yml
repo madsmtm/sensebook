@@ -1,41 +1,46 @@
 sudo: false
 language: python
-python:
-- 3.5
-- 3.6
-- 3.7-dev
-- pypy3.5
+python: 3.6
 
-cache:
-  pip: true
+env: TOX_SKIP_MISSING_INTERPRETERS=false
 
-install:
-- pip install .
-- pip install pytest
+cache: pip
 
-script: pytest tests
+install: pip install tox
+
+script: tox -v
 
 jobs:
   include:
-    - stage: Lint
-      install: pip install black
-      script: black --verbose --check .
-      python: 3.7
+  - env: TOXENV=lint
 
-    - stage: Deploy
-      name: PyPI
-      on:
-        branch: master
-        tags: true
-      deploy:
-        provider: pypi
-        user: $PYPI_USER
-        password: $PYPI_PASSWORD
-        distributions: sdist bdist_wheel
-        skip_existing: true
-      python: 3.7
+  - python: 3.5
+    env: TOXENV=py35
 
-stages:
-- Lint
-- Test
-- Deploy
+  - python: 3.6
+    env: TOXENV=py36
+
+  - python: 3.7
+    dist: xenial
+    sudo: required
+    env: TOXENV=py37
+
+  - python: pypy3.5
+    env: TOXENV=pypy3
+    after_install: |
+
+  - stage: Deploy
+    name: PyPI
+    on:
+      branch: master
+      tags: true
+    deploy:
+      provider: pypi
+      user: $PYPI_USER
+      password: $PYPI_PASSWORD
+      distributions: sdist bdist_wheel
+      skip_existing: true
+
+after_failure:
+- more .tox/log/* | cat
+- more .tox/*/log/* | cat

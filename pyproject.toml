@@ -5,6 +5,7 @@ include = '\.pyi?$'
 exclude = '''
 /(
     \.git
+  | \.tox
   | \.mypy_cache
   | \.pytest_cache
   | venv
