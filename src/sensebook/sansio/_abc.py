@@ -1,5 +1,6 @@
 import abc
-from typing import ClassVar, Dict, Iterable
+from typing import ClassVar, Dict, Iterable, Any
+
 from ._utils import build_url
 
 __all__ = ("ABCRequest", "ABCGetRequest")
@@ -8,18 +9,18 @@ __all__ = ("ABCRequest", "ABCGetRequest")
 class ABCRequest(metaclass=abc.ABCMeta):
     __slots__ = ()
 
-    @abc.abstractmethod
     @property
+    @abc.abstractmethod
     def method(self) -> ClassVar[str]:
         raise NotImplementedError
 
-    @abc.abstractmethod
     @property
+    @abc.abstractmethod
     def host(self) -> ClassVar[str]:
         raise NotImplementedError
 
-    @abc.abstractmethod
     @property
+    @abc.abstractmethod
     def target(self) -> ClassVar[str]:
         raise NotImplementedError
 

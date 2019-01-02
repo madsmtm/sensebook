@@ -2,9 +2,9 @@ import attr
 import random
 import logging
 
-from typing import ClassVar, Iterable, Any, List
+from typing import Optional, Dict, Iterable, Any, List
 
-from ._utils import strip_text_for_json, load_json
+from ._utils import strip_json_cruft, load_json
 from ._abc import ABCGetRequest
 
 
@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 __all__ = ("Backoff", "PullData", "PullRequest")
 
 
-@attr.s(slots=True, kwonly=True)
+@attr.s(slots=True, kw_only=True)
 class Backoff:
     _delay_override = attr.ib(None, type=float)
     _times = attr.ib(0, type=int)
@@ -45,7 +45,7 @@ class Backoff:
         return delay * random.uniform(1, 1.5)
 
 
-@attr.s(slots=True, kwonly=True)
+@attr.s(slots=True, kw_only=True)
 class PullData:
     backoff = attr.ib(factory=Backoff, type=Backoff)
     clientid = attr.ib(type=str)
@@ -108,6 +108,7 @@ class PullData:
 
     def handle_type_heartbeat(self, data):
         # Request refresh, no need to do anything
+        pass
 
     def handle_type_lb(self, data):
         lb_info = data["lb_info"]
@@ -144,7 +145,7 @@ class PullData:
             log.error("Unknown protocol message: %s, %s", type_, data)
 
 
-@attr.s(slots=True, kwonly=True)
+@attr.s(slots=True, kw_only=True)
 class PullRequest(ABCGetRequest):
     """Handles polling for events."""
 
@@ -154,7 +155,7 @@ class PullRequest(ABCGetRequest):
     host = "0-edge-chat.facebook.com"
     target = "/pull"
     #: The server holds the request open for 50 seconds
-    read_timeout = 60
+    read_timeout = 120
     connect_timeout = 10
 
     def get_params(self):
@@ -164,11 +165,12 @@ class PullRequest(ABCGetRequest):
             "sticky_pool": self.pull_data.sticky_pool,
             "msgs_recv": self.pull_data.msgs_recv,
             "seq": self.pull_data.seq,
-            "state": "active" if self.mark_alive else "offline"
+            "state": "active" if self.mark_alive else "offline",
         }
 
     def parse(self, data: bytes) -> None:
-        j = load_json(strip_text_for_json(data.decode("utf-8")))
+        j = load_json(strip_json_cruft(data.decode("utf-8")))
+        print("\n\n{}\n\n".format(j))
         return self.pull_data.handle(j)
 
     def handle_error(self, code, *more) -> None:

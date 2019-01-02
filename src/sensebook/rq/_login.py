@@ -1,17 +1,19 @@
 import attr
 import re
+import requests
 from typing import ClassVar
 from bs4 import BeautifulSoup as bs
 
-__all__ = ("Core",)
+__all__ = ("Login",)
 
 
-@attr.s
-class Core:
+@attr.s(slots=True, kw_only=True)
+class Login:
     """Core methods for logging in to and out of Facebook"""
 
     _session = attr.ib(type=requests.Session)
 
+    BASE_URL = "https://facebook.com"
     MOBILE_URL = "https://m.facebook.com"
     LOGIN_URL = "{}/login.php?login_attempt=1".format(MOBILE_URL)
     FIND_FB_DTSG = re.compile(r'name="fb_dtsg" value="(.*?)"')
@@ -31,7 +33,7 @@ class Core:
         self._session.params["fb_dtsg"] = fb_dtsg
 
     def _set_default_params(self) -> None:
-        resp = self._session.get("/")
+        resp = self._session.get(self.BASE_URL)
 
         rev = self.FIND_CLIENT_REVISION.search(resp.text).group(1)
 
@@ -43,13 +45,15 @@ class Core:
 
         self._set_fb_dtsg_html(resp.text)
 
-    def login(self, email: str, password: str) -> None:
+    @classmethod
+    def login(cls, email: str, password: str) -> "Login":
         """Initialize and login, storing the cookies in the session
 
         Args:
             email: Facebook `email`, `id` or `phone number`
             password: Facebook account password
         """
+        self = cls(session=requests.Session())
 
         r = self._session.get(self.MOBILE_URL)
 
@@ -70,15 +74,15 @@ class Core:
 
         self._set_default_params()
 
+        return self
+
     def logout(self) -> None:
         """Properly log out and invalidate the session"""
 
-        r = self._session.post(
-            "/bluebar/modern_settings_menu/", data={"pmid": "4"}
-        )
+        r = self._session.post("/bluebar/modern_settings_menu/", data={"pmid": "4"})
         logout_h = self.FIND_LOGOUT_VALUE.search(r.text).group(1)
 
-        await self._session.get("/logout.php", params={"ref": "mb", "h": logout_h})
+        self._session.get("/logout.php", params={"ref": "mb", "h": logout_h})
 
     def is_logged_in(self) -> bool:
         """Check the login status

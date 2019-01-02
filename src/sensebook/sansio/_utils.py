@@ -3,7 +3,7 @@ import json
 import urllib.parse
 from typing import Dict, Any
 
-__all__ = ("build_target", "strip_json_cruft", "load_json", "time_from_millis")
+__all__ = ("build_url", "strip_json_cruft", "load_json", "time_from_millis")
 
 
 def build_url(
