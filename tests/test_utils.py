@@ -19,7 +19,7 @@ def test_strip_json_cruft_invalid():
 
 
 def test_time_from_millis():
-    dt = datetime.datetime(2018, 11, 16, 2, 51, 4, 162000)
+    dt = datetime.datetime(2018, 11, 16, 1, 51, 4, 162000)
     assert sansio.time_from_millis(1542333064162) == dt
 
 
