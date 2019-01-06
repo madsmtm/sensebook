@@ -23,7 +23,7 @@ author = "Mads Marquart"
 author-email = "madsmtm@gmail.com"
 home-page = "https://github.com/madsmtm/sensebook/"
 requires = [
-    "attrs",
+    "attrs>=18.2.0",
 ]
 description-file = "README.md"
 classifiers = [
