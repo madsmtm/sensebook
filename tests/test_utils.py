@@ -19,8 +19,8 @@ def test_strip_json_cruft_invalid():
 
 
 def test_time_from_millis():
-    dt = datetime.datetime(2018, 11, 16, 2, 51, 4, 162000)
-    assert sansio.time_from_millis(1542333064162) == dt
+    dt = datetime.datetime(2018, 11, 16, 2, 51, 4, 162_000)
+    assert sansio.time_from_millis(1_542_333_064_162) == dt
 
 
 def test_random_hex():
