@@ -40,12 +40,9 @@ jobs:
     name: PyPI
     if: tag IS present
     install: skip
-    script: flit build
+    script: skip
     deploy:
-      provider: pypi
-      user: $PYPI_USER
-      password: $PYPI_PASSWORD
-      distributions: sdist bdist_wheel
-      skip_existing: true
+      provider: script
+      script: flit publish
       on:
         tags: true
