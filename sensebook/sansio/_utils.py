@@ -34,7 +34,7 @@ def load_json(text: str) -> Any:
 
 
 def time_from_millis(timestamp_in_milliseconds: int) -> datetime:
-    return datetime.datetime.fromtimestamp(int(timestamp_in_milliseconds) / 1000)
+    return datetime.datetime.utcfromtimestamp(int(timestamp_in_milliseconds) / 1000)
 
 
 def random_hex(n):
