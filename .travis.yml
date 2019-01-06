@@ -4,33 +4,29 @@ python: 3.6
 
 cache: pip
 
-install: pip install tox
-
-script: tox -v
+before_install: pip install flit
+# Use `--deps production` so that we don't install unnecessary dependencies
+install: flit install --deps production --extras test
+script: pytest
 
 jobs:
   include:
-  - env: TOXENV=lint
-
   - python: 3.5
-    env: TOXENV=py35
-
   - python: 3.6
-    env: TOXENV=py36
-
   - python: 3.7
     dist: xenial
     sudo: required
-    env: TOXENV=py37
-
   - python: pypy3.5
-    env: TOXENV=pypy3
+
+  - before_install: skip
+    install: pip install black
+    script: black --check --verbose .
 
   - stage: deploy
     name: Github Releases
     if: tag IS present
     install: skip
-    script: python setup.py sdist bdist_wheel
+    script: flit build
     deploy:
       provider: releases
       api_key: $GITHUB_OAUTH_TOKEN
@@ -44,7 +40,7 @@ jobs:
     name: PyPI
     if: tag IS present
     install: skip
-    script: skip
+    script: flit build
     deploy:
       provider: pypi
       user: $PYPI_USER
@@ -53,7 +49,3 @@ jobs:
       skip_existing: true
       on:
         tags: true
-
-after_failure:
-- more .tox/log/* | cat
-- more .tox/*/log/* | cat

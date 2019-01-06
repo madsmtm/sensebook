@@ -3,9 +3,10 @@ Making sense of Facebooks undocumented API
 
 [![License](https://img.shields.io/pypi/l/sensebook.svg)](https://github.com/madsmtm/sensebook/blob/master/LICENSE.txt)
 ![Supported Python Versions](https://img.shields.io/pypi/pyversions/sensebook.svg)
-![Implementation](https://img.shields.io/pypi/implementation/sensebook.svg)
+![Implementations](https://img.shields.io/pypi/implementation/sensebook.svg)
 ![Project Status](https://img.shields.io/pypi/status/sensebook.svg)
 [![Version](https://img.shields.io/pypi/v/sensebook.svg)](https://pypi.org/project/sensebook/)
+[![Build Status](https://travis-ci.com/madsmtm/sensebook.svg)](https://travis-ci.com/madsmtm/sensebook)
 
 This project attempts to document Facebooks undocumented API, so that libraries
 can interact with Facebook in the same way the browser does. The main focus is
