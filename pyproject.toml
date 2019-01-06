@@ -13,3 +13,55 @@ exclude = '''
   | venv
 )/
 '''
+
+[build-system]
+requires = ["flit"]
+build-backend = "flit.buildapi"
+
+[tool.flit.metadata]
+module = "sensebook"
+author = "Mads Marquart"
+author-email = "madsmtm@gmail.com"
+home-page = "https://github.com/madsmtm/sensebook/"
+requires = [
+    "attrs",
+]
+description-file = "README.md"
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+    "Natural Language :: English",
+    "Programming Language :: JavaScript",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.5",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Topic :: Communications :: Chat",
+    "Topic :: Documentation",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+requires-python = ">=3.5, <4.0"
+keywords = "Facebook FB Messenger Library Documentation Sans-IO"
+license = "BSD 3-Clause"
+
+[tool.flit.metadata.urls]
+Repository = "https://github.com/madsmtm/sensebook/"
+
+[tool.flit.metadata.requires-extra]
+dev = [
+    "tox",
+    "black",
+]
+requests = [
+    "requests",
+]
