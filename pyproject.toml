@@ -5,7 +5,6 @@ include = '\.pyi?$'
 exclude = '''
 /(
     \.git
-  | \.tox
   | \.mypy_cache
   | \.pytest_cache
   | build
@@ -58,8 +57,13 @@ license = "BSD 3-Clause"
 Repository = "https://github.com/madsmtm/sensebook/"
 
 [tool.flit.metadata.requires-extra]
+test = [
+    "pytest",
+    "pytest-mock",
+    "pytest-raises",
+    "pytest-travis-fold",
+]
 dev = [
-    "tox",
     "black",
 ]
 requests = [
