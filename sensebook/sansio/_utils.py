@@ -39,3 +39,13 @@ def time_from_millis(timestamp_in_milliseconds: int) -> datetime:
 
 def random_hex(n):
     return "{:x}".format(random.randint(0, 2 ** n))
+
+
+# @decorator.decorator
+# def raises(func, exception_cls: BaseException = None, *args, **kwargs):
+#     try:
+#         return func(*args, **kwargs)
+#     except Exception as e:
+#         if exception_cls is not None and isinstance(e, exception_cls):
+#             raise
+#         raise InternalError from e
