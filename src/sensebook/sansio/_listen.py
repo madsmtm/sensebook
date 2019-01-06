@@ -4,174 +4,197 @@ import logging
 
 from typing import Optional, Dict, Iterable, Any, List
 
-from ._utils import strip_json_cruft, load_json
-from ._abc import ABCGetRequest
+from . import _utils, _abc, _backoff
 
 
 log = logging.getLogger(__name__)
 
-__all__ = ("Backoff", "PullData", "PullRequest")
+__all__ = ("ProtocolError", "PullRequest", "Listener")
+
+
+class ProtocolError(Exception):
+    """Raised if some assumption we made about Facebook's protocol is incorrect."""
+
+    def __init__(self, msg, data=None):
+        self.data = data
+        if isinstance(data, dict):
+            self.type = data.get("t")
+        else:
+            self.type = None
+        super().__init__(msg)
 
 
 @attr.s(slots=True, kw_only=True)
-class Backoff:
-    _delay_override = attr.ib(None, type=float)
-    _times = attr.ib(0, type=int)
+class PullRequest(_abc.ABCRequest):
+    """Handles polling for events."""
 
-    def do(self) -> None:
-        self._times += 1
-
-    def reset(self) -> None:
-        self._times = 0
-
-    def override(self, value: float) -> None:
-        self._delay_override = value
-
-    def reset_override(self) -> None:
-        self._delay_override = None
-
-    def get_delay(self) -> float:
-        if self._delay_override:
-            return self._delay_override
-        if self._times > 0:
-            delay = min(5 * (2 ** max(0, self._times - 1)), 320)
-            return delay
-        return None
-
-    def get_randomized_delay(self) -> Optional[float]:
-        delay = self.get_delay()
-        if delay is None:
-            return None
-        return delay * random.uniform(1, 1.5)
+    params = attr.ib(type=Dict[str, Any])
+    method = "GET"
+    host = "0-edge-chat.facebook.com"
+    target = "/pull"
+    #: The server holds the request open for 50 seconds
+    read_timeout = 60
+    #: Slighty over a multiple of 3, see `TCP packet retransmission window`
+    connect_timeout = 10  # TODO: Might be a bit too high
 
 
 @attr.s(slots=True, kw_only=True)
-class PullData:
-    backoff = attr.ib(factory=Backoff, type=Backoff)
-    clientid = attr.ib(type=str)
-    sticky_token = attr.ib(None, type=str)
-    sticky_pool = attr.ib(None, type=str)
-    msgs_recv = attr.ib(0, type=int)
-    seq = attr.ib(0, type=int)
-    _prev_seq = attr.ib(0, type=int)
+class Listener:
+    mark_alive = attr.ib(False, type=bool)
+    _backoff = attr.ib(type=_backoff.Backoff)
+    _clientid = attr.ib(type=str)
+    _sticky_token = attr.ib(None, type=str)
+    _sticky_pool = attr.ib(None, type=str)
+    _seq = attr.ib(0, type=int)
 
-    @clientid.default
-    def default_client_id(self):
-        return "{:x}".format(random.randint(0, 2 ** 31))
+    @_backoff.default
+    def _default_backoff(self):
+        def jitter(value):
+            return value * random.uniform(1.0, 1.5)
 
-    def parse_seq(self, data: Any) -> int:
-        """Extract a new `seq` from pull data, or return the old."""
+        return _backoff.Backoff.expo(max_time=320, factor=5, jitter=jitter)
+
+    @_clientid.default
+    def _default_client_id(self):
+        return _utils.random_hex(31)
+
+    def _parse_seq(self, data: Any) -> int:
+        # Extract a new `seq` from pull data, or return the old
+        # The JS code handles "sequence regressions", and sends a `msgs_recv` parameter
+        # back, but we won't bother, since their detection is broken (they don't reset
+        # `msgs_recv` when `seq` resets)
+
+        # `s` takes precedence over `seq`
         if "s" in data:
             return int(data["s"])
         if "seq" in data:
             return int(data["seq"])
-        return self.seq
+        return self._seq
 
-    def verify_seq(self, msgs: List[Any]) -> None:
-        """Verifies that the messages arrived in the proper sequence."""
-        if self.seq - self._prev_seq < len(msgs):
-            msg = "Sequence regression. Some items may have been duplicated! %s, %s, %s"
-            log.error(msg, self._prev_seq, self.seq, msgs)
-            # We could strip the duplicated msgs with:
-            # msgs = msgs[len(msgs) - (self._seq - self._prev_seq): ]
-            # But I'm not sure what causes a sequence regression, and there might be
-            # other factors involved, so it's safer to just allow duplicates for now
+    @staticmethod
+    def _safe_status_code(status_code):
+        return 200 <= status_code < 300
 
-    def handle_msg(self, msgs: List[Any]) -> Iterable[Any]:
-        """Handle the message data in the `ms` key."""
-        self.verify_seq(msgs)
-        for msg in msgs:
-            self.msgs_recv += 1
-            yield msg
+    def _handle_status(self, status_code, body):
+        if status_code == 503:
+            # In Facebook's JS code, this delay is set by their servers on every call to
+            # `/ajax/presence/reconnect.php`, as `proxy_down_delay_millis`, but we'll
+            # just set a sensible default
+            self._backoff.override(60)
+            log.error("Server is unavailable")
+        else:
+            raise ProtocolError(
+                "Unknown server error response: {}".format(status_code), body
+            )
 
-    def handle_type_backoff(self, data):
-        log.warning("Server told us to back off")
-        self.backoff.do()
+    def _parse_body(self, body: bytes) -> Dict[str, Any]:
+        try:
+            decoded = body.decode("utf-8")
+        except UnicodeDecodeError as e:
+            raise ProtocolError("Invalid unicode data", body) from e
+        try:
+            return _utils.load_json(_utils.strip_json_cruft(decoded))
+        except ValueError as e:
+            raise ProtocolError("Invalid JSON data", body) from e
 
-    def handle_type_batched(self, data):
-        for item in data["batches"]:
-            yield from self.handle_protocol_data(item)
-
-    def handle_type_continue(self, data):
-        self.backoff.reset()
-        log.info("Unused protocol message 'continue', %s", data)
-
-    def handle_type_fullReload(self, data):
-        """Not yet sure what consequence this has.
-
-        But I know that if this is sent, then some messages/events may not have been
-        sent to us, so we should query for them with a graphqlbatch-something.
-        """
-        self.backoff.reset()
-        if "ms" in data:
-            yield from self.handle_msg(data["ms"])
-
-    def handle_type_heartbeat(self, data):
-        # Request refresh, no need to do anything
-        pass
-
-    def handle_type_lb(self, data):
-        lb_info = data["lb_info"]
-        self.sticky_token = lb_info["sticky"]
-        if "pool" in lb_info:
-            self.sticky_pool = lb_info["pool"]
-
-    def handle_type_msg(self, data):
-        self.backoff.reset()
-        yield from self.handle_msg(data["ms"])
-
-    def handle_type_refresh(self, data):
-        # {'t': 'refresh', 'reason': 110, 'seq': 0}
-        self.backoff.override(5)  # Temporary, I was hitting infinite loops
-        log.info("Unused protocol message 'refresh', %s", data)
-
-    handle_type_refreshDelay = handle_type_refresh
-
-    def handle_type_test_streaming(self, data):
-        log.info("Unused protocol message 'test_streaming', %s", data)
-
-    def handle(self, data: Dict[str, Any]) -> Iterable[Any]:
-        """Handle pull protocol data, and yield data frames ready for further parsing"""
-        self._prev_seq = self.seq
-        self.seq = self.parse_seq(data)
-
+    def _handle_data(self, data: Dict[str, Any]) -> Iterable[Any]:
         # Don't worry if you've never seen a lot of these types, this is implemented
         # based on reading the JS source for Facebook's `ChannelManager`
+        self._seq = self._parse_seq(data)
+
         type_ = data.get("t")
-        method = getattr(self, "handle_type_{}".format(type_), None)
+        method = getattr(self, "_handle_type_{}".format(type_), None)
         if method:
-            yield from method(data) or ()
+            return method(data) or ()
         else:
-            log.error("Unknown protocol message: %s, %s", type_, data)
+            raise ProtocolError("Unknown protocol message", data)
 
+    # Type handlers
 
-@attr.s(slots=True, kw_only=True)
-class PullRequest(ABCGetRequest):
-    """Handles polling for events."""
+    def _handle_type_backoff(self, data):
+        log.warning("Server told us to back off")
+        self._backoff.do()
 
-    mark_alive = attr.ib(type=bool)
-    pull_data = attr.ib(type=PullData)
+    def _handle_type_batched(self, data):
+        for item in data["batches"]:
+            yield from self._handle_data(item)
 
-    host = "0-edge-chat.facebook.com"
-    target = "/pull"
-    #: The server holds the request open for 50 seconds
-    read_timeout = 120
-    connect_timeout = 10
+    def _handle_type_continue(self, data):
+        self._backoff.reset()
+        raise ProtocolError("Unused protocol message `test_streaming`", data)
 
-    def get_params(self):
-        return {
-            "clientid": self.pull_data.clientid,
-            "sticky_token": self.pull_data.sticky_token,
-            "sticky_pool": self.pull_data.sticky_pool,
-            "msgs_recv": self.pull_data.msgs_recv,
-            "seq": self.pull_data.seq,
-            "state": "active" if self.mark_alive else "offline",
-        }
+    def _handle_type_fullReload(self, data):
+        # Not yet sure what consequence this has.
+        # But I know that if this is sent, then some messages/events may not have been
+        # sent to us, so we should query for them with a graphqlbatch-something.
+        self._backoff.reset()
+        if "ms" in data:
+            return data["ms"]
 
-    def parse(self, data: bytes) -> None:
-        j = load_json(strip_json_cruft(data.decode("utf-8")))
-        print("\n\n{}\n\n".format(j))
-        return self.pull_data.handle(j)
+    def _handle_type_heartbeat(self, data):
+        # Request refresh, no need to do anything
+        log.debug("Heartbeat")
 
-    def handle_error(self, code, *more) -> None:
-        raise NotImplementedError
+    def _handle_type_lb(self, data):
+        lb_info = data["lb_info"]
+        self._sticky_token = lb_info["sticky"]
+        if "pool" in lb_info:
+            self._sticky_pool = lb_info["pool"]
+
+    def _handle_type_msg(self, data):
+        self._backoff.reset()
+        return data["ms"]
+
+    def _handle_type_refresh(self, data):
+        # We don't perform the call, it's quite complicated, and perhaps unnecessary?
+        raise ProtocolError(
+            "The server told us to call `/ajax/presence/reconnect.php`."
+            "This might mean our data representation is wrong!",
+            data,
+        )
+
+    _handle_type_refreshDelay = _handle_type_refresh
+
+    def _handle_type_test_streaming(self, data):
+        raise ProtocolError("Unused protocol message `test_streaming`", data)
+
+    # Public methods
+
+    def get_delay(self) -> Optional[float]:
+        return self._backoff.get_randomized_delay()
+
+    def next_request(self) -> PullRequest:
+        self._backoff.reset_override()  # TODO: Not sure if putting this here is correct
+        return PullRequest(
+            params={
+                "clientid": self._clientid,
+                "sticky_token": self._sticky_token,
+                "sticky_pool": self._sticky_pool,
+                "msgs_recv": 0,
+                "seq": self._seq,
+                "state": "active" if self.mark_alive else "offline",
+            }
+        )
+
+    def handle_connection_error(self) -> None:
+        log.exception("Could not pull")
+        self._backoff.do()  # Unsure
+
+    def handle_connect_timeout(self) -> None:
+        log.exception("Connection lost")
+        # Keep trying every minute
+        self._backoff.override(60)
+
+    def handle_read_timeout(self) -> None:
+        log.debug("Read timeout")
+        # The server might not send data for a while, so we just try again
+
+    def handle(self, status_code: int, body: bytes) -> Iterable[Any]:
+        """Handle pull protocol body, and yield data frames ready for further parsing"""
+        if not self._safe_status_code(status_code):
+            self._handle_status(status_code, body)
+            return
+
+        data = self._parse_body(body)
+
+        yield from self._handle_data(data)

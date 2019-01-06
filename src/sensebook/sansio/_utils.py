@@ -1,18 +1,24 @@
 import datetime
 import json
+import random
 import urllib.parse
 from typing import Dict, Any
 
-__all__ = ("build_url", "strip_json_cruft", "load_json", "time_from_millis")
+__all__ = (
+    "build_url",
+    "strip_json_cruft",
+    "load_json",
+    "time_from_millis",
+    "random_hex",
+)
 
 
 def build_url(
-    host: str, target: str, query: Dict[str, Any], secure: bool = True
+    *, host: str, target: str, params: Dict[str, Any], secure: bool = True
 ) -> str:
     scheme = "https" if secure else "http"
-    return urllib.parse.urlunsplit(
-        (scheme, host, target, urllib.parse.urlencode(query), "")
-    )
+    query = urllib.parse.urlencode(params)
+    return urllib.parse.urlunsplit((scheme, host, target, query, ""))
 
 
 def strip_json_cruft(text: str) -> str:
@@ -28,4 +34,8 @@ def load_json(text: str) -> Any:
 
 
 def time_from_millis(timestamp_in_milliseconds: int) -> datetime:
-    return datetime.datetime.fromtimestamp(int(timestamp) / 1000)
+    return datetime.datetime.fromtimestamp(int(timestamp_in_milliseconds) / 1000)
+
+
+def random_hex(n):
+    return "{:x}".format(random.randint(0, 2 ** n))
