@@ -1,14 +1,12 @@
-# Python cache files
+# Cache files
 __pycache__/
-
-# Test files
+.mypy_cache/
 .pytest_cache/
-.tox/
 
 # Builds
-*.egg-info/
-build/
-dist/
+/build/
+/dist/
 
 # Virtual environment
-venv/
+venv*/
+.venv*/
