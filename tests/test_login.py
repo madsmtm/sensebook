@@ -5,7 +5,7 @@ from pytest import mark, param
 @mark.parametrize(
     "html, rev",
     [
-        param("invalid", None, marks=mark.xfail(raises=sansio.LoginError)),
+        param("invalid", None, marks=mark.raises(exception=sansio.LoginError)),
         ('"client_revision":123,', "123"),
         ('<script>...{"server_revision":123,"client_revision":456,...</script>', "456"),
     ],
@@ -17,7 +17,7 @@ def test_get_revision(html, rev):
 @mark.parametrize(
     "html, rev",
     [
-        param("invalid", None, marks=mark.xfail(raises=sansio.LoginError)),
+        param("invalid", None, marks=mark.raises(exception=sansio.LoginError)),
         ('name="fb_dtsg" value="123"', "123"),
         ('<input type="hidden" name="fb_dtsg" value="12:34" />', "12:34"),
     ],
@@ -87,6 +87,6 @@ def test_get_form_data():
     }
 
 
-@mark.xfail(raises=sansio.LoginError)
+@mark.raises(exception=sansio.LoginError)
 def test_invalid_form_data():
     sansio._login.get_form_data("invalid", None, None)
