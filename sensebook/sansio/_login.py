@@ -6,8 +6,6 @@ from typing import Dict, Tuple
 
 from . import _utils, State
 
-__all__ = ("LoginError",)
-
 REVISION_RE = re.compile(r'"client_revision":(.*?),')
 FB_DTSG_RE = re.compile(r'name="fb_dtsg" value="(.*?)"')
 LOGOUT_H_RE = re.compile(r'name=\\"h\\" value=\\"(.*?)\\"')

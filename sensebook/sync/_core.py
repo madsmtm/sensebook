@@ -5,8 +5,6 @@ from typing import Dict
 
 from .. import sansio, __version__
 
-__all__ = ("State",)
-
 
 @attr.s(slots=True, kw_only=True)
 class State(sansio.State):

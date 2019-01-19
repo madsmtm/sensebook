@@ -3,8 +3,6 @@ import random
 
 from typing import Optional, ClassVar, Callable
 
-__all__ = ("Backoff",)
-
 
 @attr.s(slots=True, kw_only=True)
 class Backoff:

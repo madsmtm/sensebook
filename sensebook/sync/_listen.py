@@ -7,8 +7,6 @@ from typing import Any, Iterable, Optional
 from .. import sansio
 from . import State
 
-__all__ = ("Listener",)
-
 
 @attr.s(slots=True, kw_only=True)
 class Listener:

@@ -4,8 +4,6 @@ import requests
 from .. import sansio
 from . import State
 
-__all__ = ("login", "logout", "is_logged_in")
-
 LOGIN_URL = "https://m.facebook.com/login"
 
 
