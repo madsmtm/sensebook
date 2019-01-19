@@ -1,14 +1,22 @@
 import attr
 import requests
 
-from .. import sansio
+from typing import Dict
 
-__all__ = ("Session",)
+from .. import sansio, __version__
+
+__all__ = ("State",)
 
 
 @attr.s(slots=True, kw_only=True)
 class State(sansio.State):
-    _session = attr.ib(factory=requests.Session, type=requests.Session)
+    _session = attr.ib(type=requests.Session)
+
+    @_session.default
+    def default_session(self):
+        session = requests.Session()
+        session.headers["User-Agent"] = sansio._utils.default_user_agent()
+        return session
 
     @property
     def cookies(self):

@@ -6,13 +6,7 @@ from typing import Dict, Tuple
 
 from . import _utils, State
 
-__all__ = (
-    "LoginError",
-    "get_params",
-    "get_form_data",
-    "get_fb_dtsg",
-    "get_client_revision",
-)
+__all__ = ("LoginError",)
 
 REVISION_RE = re.compile(r'"client_revision":(.*?),')
 FB_DTSG_RE = re.compile(r'name="fb_dtsg" value="(.*?)"')
@@ -47,7 +41,10 @@ def get_logout_h(html: str) -> str:
 def get_form_data(
     html: str, email: str, password: str
 ) -> Tuple[str, str, Dict[str, str]]:
-    method, url, data = _utils.parse_form(html)
+    try:
+        method, url, data = _utils.parse_form(html)
+    except ValueError as e:
+        raise LoginError from e  # TODO: Better error message
     data["email"] = email
     data["pass"] = password
     if "sign_up" in data:

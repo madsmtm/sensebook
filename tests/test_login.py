@@ -10,8 +10,8 @@ from pytest import mark, param
         ('<script>...{"server_revision":123,"client_revision":456,...</script>', "456"),
     ],
 )
-def test_get_client_revision(html, rev):
-    assert sansio.get_client_revision(html) == rev
+def test_get_revision(html, rev):
+    assert sansio._login.get_revision(html) == rev
 
 
 @mark.parametrize(
@@ -23,7 +23,7 @@ def test_get_client_revision(html, rev):
     ],
 )
 def test_get_fb_dtsg(html, rev):
-    assert sansio.get_fb_dtsg(html) == rev
+    assert sansio._login.get_fb_dtsg(html) == rev
 
 
 def test_get_form_data():
@@ -69,8 +69,9 @@ def test_get_form_data():
     email = "<email>"
     password = "<password>"
 
-    url, data = sansio.get_form_data(html, email, password)
+    method, url, data = sansio._login.get_form_data(html, email, password)
 
+    assert method == "post"
     assert url == "https://m.facebook.com/login/..."
     assert data == {
         "lsd": "ABC",
@@ -88,4 +89,4 @@ def test_get_form_data():
 
 @mark.xfail(raises=sansio.LoginError)
 def test_invalid_form_data():
-    sansio.get_form_data("invalid", None, None)
+    sansio._login.get_form_data("invalid", None, None)

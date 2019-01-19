@@ -1,9 +1,10 @@
 import abc
+import attr
 from typing import Dict, Any, Optional
 
 from ._utils import build_url
 
-__all__ = ("ABCRequest", "State")
+__all__ = ("State", "ABCRequest")
 
 
 @attr.s(slots=True, kw_only=True)
@@ -12,15 +13,6 @@ class State(metaclass=abc.ABCMeta):
 
     revision = attr.ib(None, type=str)
     fb_dtsg = attr.ib(None, type=str)
-
-    @property
-    def params(self):
-        return {
-            "__rev": self.client_revision,
-            "__user": self.cookies.get("c_user"),
-            "__a": "1",
-            "fb_dtsg": self.fb_dtsg,
-        }
 
     @property
     @abc.abstractmethod

@@ -1,16 +1,29 @@
+import bs4
 import datetime
 import json
 import random
 import urllib.parse
-from typing import Dict, Any
 
-__all__ = (
-    "build_url",
-    "strip_json_cruft",
-    "load_json",
-    "time_from_millis",
-    "random_hex",
-)
+from typing import Dict, Any, Tuple
+
+from .. import __version__
+
+
+def default_user_agent():
+    return "{}/{}".format(__name__.split(".")[0], __version__)
+
+
+def parse_form(html: str) -> Tuple[str, str, Dict[str, str]]:
+    soup = bs4.BeautifulSoup(html, "html.parser")
+    form = soup.form
+    if form is None or not form.has_attr("action"):
+        raise ValueError("Could not find `form` element!")
+    data = {
+        elem["name"]: elem["value"]
+        for elem in form.find_all("input")
+        if elem.has_attr("value") and elem.has_attr("name")
+    }
+    return form.get("method", "GET"), form["action"], data
 
 
 def build_url(
