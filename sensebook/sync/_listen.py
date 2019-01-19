@@ -1,20 +1,18 @@
 import attr
-import logging
 import requests
 import time
 
 from typing import Any, Iterable, Optional
 
 from .. import sansio
+from . import State
 
 __all__ = ("Listener",)
-
-log = logging.getLogger(__name__)
 
 
 @attr.s(slots=True, kw_only=True)
 class Listener:
-    _session = attr.ib(type=requests.Session)
+    _state = attr.ib(type=State)
     _listener = attr.ib(factory=sansio.Listener, type=sansio.Listener)
 
     def _sleep(self) -> None:
@@ -28,7 +26,7 @@ class Listener:
         request = self._listener.next_request()
 
         try:
-            r = self._session.request(
+            r = self._state.request(
                 request.method,
                 request.url,
                 timeout=(request.connect_timeout, request.read_timeout),
