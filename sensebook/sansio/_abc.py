@@ -9,8 +9,8 @@ from ._utils import build_url
 class State(metaclass=abc.ABCMeta):
     """Core state storing, and methods for logging in/out of Facebook."""
 
-    revision = attr.ib(None, type=str)
-    fb_dtsg = attr.ib(None, type=str)
+    revision = attr.ib(type=str)
+    fb_dtsg = attr.ib(type=str)
 
     @property
     @abc.abstractmethod

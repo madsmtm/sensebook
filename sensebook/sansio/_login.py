@@ -9,6 +9,8 @@ from . import _utils, State
 REVISION_RE = re.compile(r'"client_revision":(.*?),')
 FB_DTSG_RE = re.compile(r'name="fb_dtsg" value="(.*?)"')
 LOGOUT_H_RE = re.compile(r'name=\\"h\\" value=\\"(.*?)\\"')
+LOGIN_URL = "https://m.facebook.com/login"
+HOME_URL = "https://facebook.com/home"
 
 
 class LoginError(Exception):
