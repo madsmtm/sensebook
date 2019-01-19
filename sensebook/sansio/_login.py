@@ -4,8 +4,9 @@ import re
 
 from typing import Dict, Tuple
 
+from . import _utils, State
+
 __all__ = (
-    "Login",
     "LoginError",
     "get_params",
     "get_form_data",
@@ -13,7 +14,7 @@ __all__ = (
     "get_client_revision",
 )
 
-CLIENT_REVISION_RE = re.compile(r'"client_revision":(.*?),')
+REVISION_RE = re.compile(r'"client_revision":(.*?),')
 FB_DTSG_RE = re.compile(r'name="fb_dtsg" value="(.*?)"')
 LOGOUT_H_RE = re.compile(r'name=\\"h\\" value=\\"(.*?)\\"')
 
@@ -22,10 +23,10 @@ class LoginError(Exception):
     pass
 
 
-def get_client_revision(html: str) -> str:
-    match = CLIENT_REVISION_RE.search(html)
+def get_revision(html: str) -> str:
+    match = REVISION_RE.search(html)
     if not match:
-        raise LoginError("Could not find `client_revision`!")
+        raise LoginError("Could not find `revision`!")
     return match.group(1)
 
 
@@ -43,35 +44,20 @@ def get_logout_h(html: str) -> str:
     return match.group(1)
 
 
-def get_params(cookies: Dict[str, str], html: str) -> Dict[str, str]:
-    return {
-        "__rev": get_client_revision(html),
-        "__user": cookies["c_user"],
-        "__a": "1",
-        "fb_dtsg": get_fb_dtsg(html),
-    }
-
-
-def get_form_data(html: str, email: str, password: str) -> Tuple[str, Dict[str, str]]:
-    soup = bs4.BeautifulSoup(html, "html.parser")
-    form = soup.form
-    if form is None or not form.has_attr("action"):
-        raise LoginError("Could not find proper `form` element!")
-    data = {
-        elem["name"]: elem["value"]
-        for elem in form.find_all("input")
-        if elem.has_attr("value")
-        and elem.has_attr("name")
-        and elem["name"] != "sign_up"
-    }
+def get_form_data(
+    html: str, email: str, password: str
+) -> Tuple[str, str, Dict[str, str]]:
+    method, url, data = _utils.parse_form(html)
     data["email"] = email
     data["pass"] = password
+    if "sign_up" in data:
+        del data["sign_up"]
     data["login"] = "Log In"
-    return form["action"], data
+    return method, url, data
 
 
-def check(cookies: Dict[str, str], url: str) -> None:
-    if "c_user" not in cookies:
+def check(state: State, url: str) -> None:
+    if "c_user" not in state.cookies:
         raise LoginError("Could not login, failed on: {}".format(url))
 
 
