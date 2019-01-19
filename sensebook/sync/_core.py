@@ -24,6 +24,8 @@ class State(sansio.State):
 
     def request(self, method, url, **kwargs):
         self._session.params = self.params
+        if url.startswith("/"):
+            url = "https://facebook.com" + url
         return self._session.request(method, url, **kwargs)
 
     def get(self, url, **kwargs):

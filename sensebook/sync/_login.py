@@ -7,7 +7,6 @@ from . import State
 __all__ = ("login", "logout", "is_logged_in")
 
 LOGIN_URL = "https://m.facebook.com/login"
-HOME_URL = "https://facebook.com/home"
 
 
 def login(email: str, password: str) -> State:
@@ -19,7 +18,7 @@ def login(email: str, password: str) -> State:
 
     sansio._login.check(state, r.url)
 
-    r = state.get(HOME_URL)
+    r = state.get("/home")
     state.fb_dtsg = sansio._login.get_fb_dtsg(r.text)
     state.revision = sansio._login.get_revision(r.text)
 
@@ -30,7 +29,8 @@ def logout(state: State) -> None:
     """Properly log out and invalidate the session"""
 
     r = state.post("/bluebar/modern_settings_menu/", data={"pmid": "4"})
-    state.get("/logout.php", params=sansio._login.get_logout_form_params(r.text))
+    params = sansio._login.get_logout_form_params(r.text)
+    state.get("/logout.php", params=params)
 
 
 def is_logged_in(state: State) -> bool:
@@ -41,5 +41,4 @@ def is_logged_in(state: State) -> bool:
     """
     # Call the login url, and see if we're redirected to the home page
     r = state.get(LOGIN_URL, allow_redirects=False)
-
     return "Location" in r.headers and "home" in r.headers["Location"]
