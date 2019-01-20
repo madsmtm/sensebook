@@ -4,7 +4,7 @@ import logging
 
 from typing import Optional, Dict, Iterable, Any, List
 
-from . import _utils, _abc, _backoff
+from . import _utils, _abc, _backoff as backoff
 
 
 log = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ class PullRequest(_abc.ABCRequest):
 @attr.s(slots=True, kw_only=True)
 class Listener:
     mark_alive = attr.ib(False, type=bool)
-    _backoff = attr.ib(type=_backoff.Backoff)
+    _backoff = attr.ib(type=backoff.Backoff)
     _clientid = attr.ib(type=str)
     _sticky_token = attr.ib(None, type=str)
     _sticky_pool = attr.ib(None, type=str)
@@ -50,7 +50,7 @@ class Listener:
         def jitter(value):
             return value * random.uniform(1.0, 1.5)
 
-        return _backoff.Backoff.expo(max_time=320, factor=5, jitter=jitter)
+        return backoff.Backoff.expo(max_time=320, factor=5, jitter=jitter)
 
     @_clientid.default
     def _default_client_id(self):

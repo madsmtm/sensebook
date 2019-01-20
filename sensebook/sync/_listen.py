@@ -29,11 +29,11 @@ class Listener:
                 request.url,
                 timeout=(request.connect_timeout, request.read_timeout),
             )
-        except requests.ConnectionError:
+        except requests.exceptions.ConnectionError:
             self._listener.handle_connection_error()
-        except requests.ConnectTimeout:
+        except requests.exceptions.ConnectTimeout:
             self._listener.handle_connect_timeout()
-        except requests.ReadTimeout:
+        except requests.exceptions.ReadTimeout:
             self._listener.handle_read_timeout()
         else:
             yield from self._listener.handle(r.status_code, r.content)

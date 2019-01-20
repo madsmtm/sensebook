@@ -46,7 +46,7 @@ def load_json(text: str) -> Any:
     return json.loads(text)
 
 
-def time_from_millis(timestamp_in_milliseconds: int) -> datetime:
+def time_from_millis(timestamp_in_milliseconds: int) -> datetime.datetime:
     return datetime.datetime.utcfromtimestamp(int(timestamp_in_milliseconds) / 1000)
 
 

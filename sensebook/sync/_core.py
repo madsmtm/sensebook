@@ -1,10 +1,13 @@
 import attr
 import requests
 
-from typing import Dict, T, Type
+from typing import Dict, TypeVar, Type
 
-from .. import sansio, __version__
+from .. import sansio
 from ..sansio import _login
+
+
+T = TypeVar("T", bound="State")
 
 
 @attr.s(slots=True, kw_only=True)
@@ -12,7 +15,8 @@ class State(sansio.State):
     _session = attr.ib(type=requests.Session)
 
     @_session.default
-    def _default_session(self):
+    @staticmethod
+    def _default_session():
         session = requests.Session()
         session.headers["User-Agent"] = sansio.default_user_agent()
         return session
