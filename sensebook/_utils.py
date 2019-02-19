@@ -6,10 +6,10 @@ import urllib.parse
 
 from typing import Dict, Any, Tuple
 
-from .. import __version__
-
 
 def default_user_agent() -> str:
+    from . import __version__
+
     return "{}/{}".format(__name__.split(".")[0], __version__)
 
 
@@ -52,6 +52,10 @@ def time_from_millis(timestamp_in_milliseconds: int) -> datetime.datetime:
 
 def random_hex(n):
     return "{:x}".format(random.randint(0, 2 ** n))
+
+
+def safe_status_code(status_code):
+    return 200 <= status_code < 300
 
 
 # @decorator.decorator

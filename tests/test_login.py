@@ -1,29 +1,29 @@
-from sensebook import sansio
+import sensebook
 from pytest import mark, param
 
 
 @mark.parametrize(
     "html, rev",
     [
-        param("invalid", None, marks=mark.raises(exception=sansio.LoginError)),
+        param("invalid", None, marks=mark.raises(exception=sensebook.LoginError)),
         ('"client_revision":123,', "123"),
         ('<script>...{"server_revision":123,"client_revision":456,...</script>', "456"),
     ],
 )
 def test_get_revision(html, rev):
-    assert sansio._login.get_revision(html) == rev
+    assert sensebook._login.get_revision(html) == rev
 
 
 @mark.parametrize(
     "html, rev",
     [
-        param("invalid", None, marks=mark.raises(exception=sansio.LoginError)),
+        param("invalid", None, marks=mark.raises(exception=sensebook.LoginError)),
         ('name="fb_dtsg" value="123"', "123"),
         ('<input type="hidden" name="fb_dtsg" value="12:34" />', "12:34"),
     ],
 )
 def test_get_fb_dtsg(html, rev):
-    assert sansio._login.get_fb_dtsg(html) == rev
+    assert sensebook._login.get_fb_dtsg(html) == rev
 
 
 def test_get_form_data():
@@ -69,7 +69,7 @@ def test_get_form_data():
     email = "<email>"
     password = "<password>"
 
-    method, url, data = sansio._login.get_form_data(html, email, password)
+    method, url, data = sensebook._login.get_form_data(html, email, password)
 
     assert method == "post"
     assert url == "https://m.facebook.com/login/..."
@@ -87,6 +87,6 @@ def test_get_form_data():
     }
 
 
-@mark.raises(exception=sansio.LoginError)
+@mark.raises(exception=sensebook.LoginError)
 def test_invalid_form_data():
-    sansio._login.get_form_data("invalid", None, None)
+    sensebook._login.get_form_data("invalid", None, None)
