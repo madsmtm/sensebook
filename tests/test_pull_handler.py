@@ -3,7 +3,7 @@ from pytest import fixture, mark, param
 
 
 @fixture
-def listener():
+def handler():
     return sensebook.PullHandler()
 
 
@@ -24,18 +24,18 @@ def test_backoff_from_tries():
     "data, seq", [({}, None), ({"s": 1}, 1), ({"seq": 1}, 1), ({"s": 1, "seq": 2}, 1)]
 )
 def test_parse_seq(data, seq):
-    listener = sensebook.PullHandler(seq=None)
-    assert listener._parse_seq(data) == seq
+    handler = sensebook.PullHandler(seq=None)
+    assert handler._parse_seq(data) == seq
 
 
 @mark.raises(exception=sensebook.Backoff)
-def test_handle_status_503(listener):
-    listener._handle_status(503, b"")
+def test_handle_status_503(handler):
+    handler._handle_status(503, b"")
 
 
 @mark.raises(exception=sensebook.ProtocolError)
-def test_handle_status_failed(listener):
-    listener._handle_status(500, b"")
+def test_handle_status_failed(handler):
+    handler._handle_status(500, b"")
 
 
 def test_parse_body():
@@ -53,34 +53,34 @@ def test_parse_body_invalid_json():
 
 
 @mark.raises(exception=sensebook.ProtocolError, message="Unknown")
-def test_handle_unknown_data_type(listener):
-    listener.handle_data({"t": "unknown"})
+def test_handle_unknown_data_type(handler):
+    handler.handle_data({"t": "unknown"})
 
 
 @mark.raises(exception=sensebook.Backoff)
-def test_handle_type_backoff(listener):
-    listener.handle_data({"t": "backoff"})
+def test_handle_type_backoff(handler):
+    handler.handle_data({"t": "backoff"})
 
 
-def test_handle_type_batched(listener, mocker):
+def test_handle_type_batched(handler, mocker):
     m = mocker.spy(sensebook.PullHandler, "handle_data")
     data = {"t": "batched", "batches": [{"t": "msg", "ms": []}, {"t": "msg", "ms": []}]}
-    list(listener.handle_data(data))
+    list(handler.handle_data(data))
     assert m.call_count == 3
 
 
 @mark.raises(exception=sensebook.ProtocolError, message="Unused")
-def test_handle_type_continue(listener):
-    listener.handle_data({"t": "continue"})
+def test_handle_type_continue(handler):
+    handler.handle_data({"t": "continue"})
 
 
-def test_handle_type_full_reload(listener):
+def test_handle_type_full_reload(handler):
     data = [1, 2, 3]
-    assert data == list(listener.handle_data({"t": "fullReload", "ms": data}))
+    assert data == list(handler.handle_data({"t": "fullReload", "ms": data}))
 
 
-def test_handle_type_heartbeat(listener):
-    listener.handle_data({"t": "heartbeat"})
+def test_handle_type_heartbeat(handler):
+    handler.handle_data({"t": "heartbeat"})
 
 
 @mark.parametrize(
@@ -92,25 +92,25 @@ def test_handle_type_heartbeat(listener):
     ],
 )
 def test_handle_type_lb(data, sticky_token, sticky_pool):
-    listener = sensebook.PullHandler(sticky_pool=None, sticky_token=None)
-    listener.handle_data(data)
-    assert listener._sticky_pool == sticky_pool
-    assert listener._sticky_token == sticky_token
+    handler = sensebook.PullHandler(sticky_pool=None, sticky_token=None)
+    handler.handle_data(data)
+    assert handler._sticky_pool == sticky_pool
+    assert handler._sticky_token == sticky_token
 
 
-def test_handle_type_msg(listener):
+def test_handle_type_msg(handler):
     lst = [1, 2, 3]
-    assert lst == list(listener.handle_data({"t": "msg", "ms": lst}))
+    assert lst == list(handler.handle_data({"t": "msg", "ms": lst}))
 
 
 @mark.raises(exception=sensebook.ProtocolError)
-def test_handle_type_refresh(listener):
-    listener.handle_data({"t": "refresh", "reason": 110})
+def test_handle_type_refresh(handler):
+    handler.handle_data({"t": "refresh", "reason": 110})
 
 
 @mark.raises(exception=sensebook.ProtocolError, message="Unused")
-def test_handle_type_test_streaming(listener):
-    listener.handle_data({"t": "test_streaming"})
+def test_handle_type_test_streaming(handler):
+    handler.handle_data({"t": "test_streaming"})
 
 
 def test_request():
@@ -120,30 +120,30 @@ def test_request():
         "sticky_pool": "xxxxxxxx_chatproxy-regional",
         "seq": 6,
     }
-    listener = sensebook.PullHandler(mark_alive=False, **params)
+    handler = sensebook.PullHandler(mark_alive=False, **params)
 
     params["state"] = "offline"
     params["msgs_recv"] = 0
 
-    request = listener.next_request()
+    request = handler.next_request()
     assert request.params == params
 
 
 @mark.raises(exception=sensebook.Backoff)
-def test_handle_connection_error(listener):
-    listener.handle_connection_error()
+def test_handle_connection_error(handler):
+    handler.handle_connection_error()
 
 
 @mark.raises(exception=sensebook.Backoff)
-def test_handle_connect_timeout(listener):
-    listener.handle_connect_timeout()
+def test_handle_connect_timeout(handler):
+    handler.handle_connect_timeout()
 
 
-def test_handle_read_timeout(listener):
-    listener.handle_read_timeout()
+def test_handle_read_timeout(handler):
+    handler.handle_read_timeout()
 
 
-def test_handle(listener):
+def test_handle(handler):
     assert [1, 2, 3] == list(
-        listener.handle(200, b'for(;;);{"t": "msg", "ms": [1, 2, 3]}')
+        handler.handle(200, b'for(;;);{"t": "msg", "ms": [1, 2, 3]}')
     )
