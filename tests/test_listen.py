@@ -58,8 +58,8 @@ def test_handle_data(listener):
 
 
 @mark.raises(exception=sensebook.ProtocolError)
-def test_handle_data_unknown_type(listener):
-    listener._handle_data({"t": "unknown"})
+def test_handle_unknown_data_type(listener):
+    listener.handle_data({"t": "unknown"})
 
 
 # Type handlers
@@ -67,57 +67,58 @@ def test_handle_data_unknown_type(listener):
 
 @mark.raises(exception=sensebook.Backoff)
 def test_handle_type_backoff(listener):
-    listener._handle_type_backoff({})
+    listener.handle_data({"t": "backoff"})
 
 
-def test_handle_type_batched(listener, patcher):
-    m = patcher(sensebook.PullHandler, "_handle_data", return_value=[])
-    list(listener._handle_type_batched({"batches": ["1", "2", "3"]}))
+def test_handle_type_batched(listener, mocker):
+    m = mocker.spy(sensebook.PullHandler, "handle_data")
+    data = {"t": "batched", "batches": [{"t": "msg", "ms": []}, {"t": "msg", "ms": []}]}
+    list(listener.handle_data(data))
     assert m.call_count == 3
 
 
 @mark.raises(exception=sensebook.ProtocolError)
 def test_handle_type_continue(listener):
-    listener._handle_type_continue({})
+    listener.handle_data({"t": "continue"})
 
 
 def test_handle_type_full_reload(listener):
-    lst = [1, 2, 3]
-    assert lst == list(listener._handle_type_fullReload({"ms": lst}))
+    data = [1, 2, 3]
+    assert data == list(listener.handle_data({"t": "fullReload", "ms": data}))
 
 
 def test_handle_type_heartbeat(listener):
-    listener._handle_type_heartbeat({})
+    listener.handle_data({"t": "heartbeat"})
 
 
 @mark.parametrize(
     "data, sticky_token, sticky_pool",
     [
-        ({"lb_info": {"sticky": 1234}}, 1234, None),
-        ({"lb_info": {"sticky": "1234", "pool": "abc"}}, "1234", "abc"),
+        ({"t": "lb", "lb_info": {"sticky": 1234}}, 1234, None),
+        ({"t": "lb", "lb_info": {"sticky": "1234", "pool": "abc"}}, "1234", "abc"),
         # param({"lb_info": {}}, None, None, marks=mark.xfail(raises=sensebook.ProtocolError)),
     ],
 )
 def test_handle_type_lb(data, sticky_token, sticky_pool):
     listener = sensebook.PullHandler(sticky_pool=None, sticky_token=None)
-    listener._handle_type_lb(data)
+    listener.handle_data(data)
     assert listener._sticky_pool == sticky_pool
     assert listener._sticky_token == sticky_token
 
 
 def test_handle_type_msg(listener):
     lst = [1, 2, 3]
-    assert lst == list(listener._handle_type_msg({"ms": lst}))
+    assert lst == list(listener.handle_data({"t": "msg", "ms": lst}))
 
 
 @mark.raises(exception=sensebook.ProtocolError)
 def test_handle_type_refresh(listener):
-    listener._handle_type_refresh({})
+    listener.handle_data({"t": "refresh", "reason": 110})
 
 
 @mark.raises(exception=sensebook.ProtocolError)
 def test_handle_type_test_streaming(listener):
-    listener._handle_type_test_streaming({})
+    listener.handle_data({"t": "test_streaming"})
 
 
 # Public methods

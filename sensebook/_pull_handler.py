@@ -107,18 +107,6 @@ class PullHandler:
                 "Unknown server error response: {}".format(status_code), body
             )
 
-    def _handle_data(self, data: Dict[str, Any]) -> Iterable[Any]:
-        # Don't worry if you've never seen a lot of these types, this is implemented
-        # based on reading the JS source for Facebook's `ChannelManager`
-        self._seq = self._parse_seq(data)
-
-        type_ = data.get("t")
-        method = getattr(self, "_handle_type_{}".format(type_), None)
-        if method:
-            return method(data) or ()
-        else:
-            raise ProtocolError("Unknown protocol message", data)
-
     # Type handlers
 
     def _handle_type_backoff(self, data):
@@ -129,7 +117,7 @@ class PullHandler:
 
     def _handle_type_batched(self, data):
         for item in data["batches"]:
-            yield from self._handle_data(item)
+            yield from self.handle_data(item)
 
     def _handle_type_continue(self, data):
         self._backoff_tries = 0
@@ -172,6 +160,18 @@ class PullHandler:
 
     # Public methods
 
+    def handle_data(self, data: Dict[str, Any]) -> Iterable[Any]:
+        # Don't worry if you've never seen a lot of these types, this is implemented
+        # based on reading the JS source for Facebook's `ChannelManager`
+        self._seq = self._parse_seq(data)
+
+        type_ = data.get("t")
+        method = getattr(self, "_handle_type_{}".format(type_), None)
+        if method:
+            return method(data) or ()
+        else:
+            raise ProtocolError("Unknown protocol message", data)
+
     def next_request(self) -> _abc.Request:
         return PullRequest(
             params={
@@ -209,7 +209,7 @@ class PullHandler:
 
         data = parse_body(body)
 
-        yield from self._handle_data(data)
+        yield from self.handle_data(data)
 
 
 # class StreamingListener(Listener):
