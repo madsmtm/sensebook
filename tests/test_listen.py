@@ -57,9 +57,6 @@ def test_handle_unknown_data_type(listener):
     listener.handle_data({"t": "unknown"})
 
 
-# Type handlers
-
-
 @mark.raises(exception=sensebook.Backoff)
 def test_handle_type_backoff(listener):
     listener.handle_data({"t": "backoff"})
@@ -114,9 +111,6 @@ def test_handle_type_refresh(listener):
 @mark.raises(exception=sensebook.ProtocolError, message="Unused")
 def test_handle_type_test_streaming(listener):
     listener.handle_data({"t": "test_streaming"})
-
-
-# Public methods
 
 
 def test_request():
