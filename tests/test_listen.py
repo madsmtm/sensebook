@@ -52,7 +52,7 @@ def test_parse_body_invalid_json():
     sensebook._pull_handler.parse_body(b"invalid JSON")
 
 
-@mark.raises(exception=sensebook.ProtocolError)
+@mark.raises(exception=sensebook.ProtocolError, message="Unknown")
 def test_handle_unknown_data_type(listener):
     listener.handle_data({"t": "unknown"})
 
@@ -72,7 +72,7 @@ def test_handle_type_batched(listener, mocker):
     assert m.call_count == 3
 
 
-@mark.raises(exception=sensebook.ProtocolError)
+@mark.raises(exception=sensebook.ProtocolError, message="Unused")
 def test_handle_type_continue(listener):
     listener.handle_data({"t": "continue"})
 
@@ -111,7 +111,7 @@ def test_handle_type_refresh(listener):
     listener.handle_data({"t": "refresh", "reason": 110})
 
 
-@mark.raises(exception=sensebook.ProtocolError)
+@mark.raises(exception=sensebook.ProtocolError, message="Unused")
 def test_handle_type_test_streaming(listener):
     listener.handle_data({"t": "test_streaming"})
 

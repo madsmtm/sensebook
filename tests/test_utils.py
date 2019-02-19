@@ -17,7 +17,7 @@ def test_strip_json_cruft():
     assert sensebook.strip_json_cruft('for(;;);{"a":2}') == '{"a":2}'
 
 
-@mark.raises(exception=ValueError, match=r"No JSON object found.*")
+@mark.raises(exception=ValueError, message="No JSON object found")
 def test_strip_json_cruft_invalid():
     sensebook.strip_json_cruft("not really json")
 
