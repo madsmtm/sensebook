@@ -7,10 +7,6 @@ def listener():
     return sensebook.PullHandler()
 
 
-def test_parse_body():
-    assert sensebook._pull_handler.parse_body(b'for(;;);{"a":2}') == {"a": 2}
-
-
 def test_backoff_from_tries():
     delay = sensebook.Backoff.from_tries(None, tries=0).delay
     assert delay == 0.0
