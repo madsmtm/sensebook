@@ -46,3 +46,8 @@ jobs:
       script: flit publish
       on:
         tags: true
+
+notifications:
+  email:
+    on_success: never
+    on_failure: change
