@@ -13,7 +13,7 @@ from ._utils import (
 from ._abc import State, Request
 
 from ._login import LoginError
-from ._pull_handler import ProtocolError, PullRequest, PullHandler
+from ._pull_handler import ProtocolError, Backoff, PullRequest, PullHandler
 
 __version__ = "0.1.2"
 
