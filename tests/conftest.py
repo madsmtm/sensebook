@@ -1,3 +1,4 @@
+import sensebook
 from pytest import fixture
 
 

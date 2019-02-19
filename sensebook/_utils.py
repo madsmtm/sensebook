@@ -54,6 +54,10 @@ def random_hex(n):
     return "{:x}".format(random.randint(0, 2 ** n))
 
 
+def safe_status_code(status_code):
+    return 200 <= status_code < 300
+
+
 # @decorator.decorator
 # def raises(func, exception_cls: BaseException = None, *args, **kwargs):
 #     try:

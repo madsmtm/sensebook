@@ -1,53 +1,46 @@
-from sensebook import sansio
+import sensebook
 from pytest import fixture, mark, param
 
 
 @fixture
 def listener():
-    return sansio.Listener()
+    return sensebook.PullHandler()
 
 
 def test_init():
-    sansio.Listener()
-    sansio.Listener(mark_alive=True)
+    sensebook.PullHandler()
+    sensebook.PullHandler(mark_alive=True)
 
 
 @mark.parametrize(
     "data, seq", [({}, None), ({"s": 1}, 1), ({"seq": 1}, 1), ({"s": 1, "seq": 2}, 1)]
 )
 def test_parse_seq(data, seq):
-    listener = sansio.Listener(seq=None)
+    listener = sensebook.PullHandler(seq=None)
     assert listener._parse_seq(data) == seq
-
-
-def test_safe_status_code(listener):
-    assert not listener._safe_status_code(199)
-    assert listener._safe_status_code(200)
-    assert listener._safe_status_code(299)
-    assert not listener._safe_status_code(300)
 
 
 def test_handle_status_503(listener):
     listener._handle_status(503, b"")
 
 
-@mark.raises(exception=sansio.ProtocolError)
+@mark.raises(exception=sensebook.ProtocolError)
 def test_handle_status_failed(listener):
     listener._handle_status(500, b"")
 
 
-def test_parse_body(listener):
-    assert listener._parse_body(b'for(;;);{"a":2}') == {"a": 2}
+def test_parse_body():
+    assert sensebook._pull_handler.parse_body(b'for(;;);{"a":2}') == {"a": 2}
 
 
-@mark.raises(exception=sansio.ProtocolError)
-def test_parse_body_invalid_unicode(listener):
-    listener._parse_body(bytes([255, 255]))
+@mark.raises(exception=sensebook.ProtocolError)
+def test_parse_body_invalid_unicode():
+    sensebook._pull_handler.parse_body(bytes([255, 255]))
 
 
-@mark.raises(exception=sansio.ProtocolError)
-def test_parse_body_invalid_json(listener):
-    listener._parse_body(b"invalid JSON")
+@mark.raises(exception=sensebook.ProtocolError)
+def test_parse_body_invalid_json():
+    sensebook._pull_handler.parse_body(b"invalid JSON")
 
 
 def test_handle_data(listener):
@@ -55,7 +48,7 @@ def test_handle_data(listener):
     assert list(listener._handle_data({"t": "msg", "ms": lst})) == lst
 
 
-@mark.raises(exception=sansio.ProtocolError)
+@mark.raises(exception=sensebook.ProtocolError)
 def test_handle_data_unknown_type(listener):
     listener._handle_data({"t": "unknown"})
 
@@ -69,12 +62,12 @@ def test_handle_type_backoff(listener):
 
 
 def test_handle_type_batched(listener, patcher):
-    m = patcher(sansio.Listener, "_handle_data", return_value=[])
+    m = patcher(sensebook.PullHandler, "_handle_data", return_value=[])
     list(listener._handle_type_batched({"batches": ["1", "2", "3"]}))
     assert m.call_count == 3
 
 
-@mark.raises(exception=sansio.ProtocolError)
+@mark.raises(exception=sensebook.ProtocolError)
 def test_handle_type_continue(listener):
     listener._handle_type_continue({})
 
@@ -93,11 +86,11 @@ def test_handle_type_heartbeat(listener):
     [
         ({"lb_info": {"sticky": 1234}}, 1234, None),
         ({"lb_info": {"sticky": "1234", "pool": "abc"}}, "1234", "abc"),
-        # param({"lb_info": {}}, None, None, marks=mark.xfail(raises=sansio.ProtocolError)),
+        # param({"lb_info": {}}, None, None, marks=mark.xfail(raises=sensebook.ProtocolError)),
     ],
 )
 def test_handle_type_lb(data, sticky_token, sticky_pool):
-    listener = sansio.Listener(sticky_pool=None, sticky_token=None)
+    listener = sensebook.PullHandler(sticky_pool=None, sticky_token=None)
     listener._handle_type_lb(data)
     assert listener._sticky_pool == sticky_pool
     assert listener._sticky_token == sticky_token
@@ -108,12 +101,12 @@ def test_handle_type_msg(listener):
     assert lst == list(listener._handle_type_msg({"ms": lst}))
 
 
-@mark.raises(exception=sansio.ProtocolError)
+@mark.raises(exception=sensebook.ProtocolError)
 def test_handle_type_refresh(listener):
     listener._handle_type_refresh({})
 
 
-@mark.raises(exception=sansio.ProtocolError)
+@mark.raises(exception=sensebook.ProtocolError)
 def test_handle_type_test_streaming(listener):
     listener._handle_type_test_streaming({})
 
@@ -132,7 +125,7 @@ def test_request():
         "sticky_pool": "xxxxxxxx_chatproxy-regional",
         "seq": 6,
     }
-    listener = sansio.Listener(mark_alive=False, **params)
+    listener = sensebook.PullHandler(mark_alive=False, **params)
 
     params["state"] = "offline"
     params["msgs_recv"] = 0

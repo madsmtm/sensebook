@@ -36,10 +36,6 @@ class PullRequest(_abc.Request):
     connect_timeout = 10  # TODO: Might be a bit too high
 
 
-def safe_status_code(status_code):
-    return 200 <= status_code < 300
-
-
 def parse_body(body: bytes) -> Dict[str, Any]:
     try:
         decoded = body.decode("utf-8")
@@ -53,7 +49,7 @@ def parse_body(body: bytes) -> Dict[str, Any]:
 
 @attr.s(slots=True, kw_only=True)
 class PullHandler:
-    _state = attr.ib(type=_abc.State)
+    # _state = attr.ib(type=_abc.State)
     mark_alive = attr.ib(False, type=bool)
     _backoff = attr.ib(type=backoff.Backoff)
     _clientid = attr.ib(type=str)
@@ -196,7 +192,7 @@ class PullHandler:
             `ProtocolError` if some assumption we made about Facebook's protocol was
             wrong.
         """
-        if not safe_status_code(status_code):
+        if not _utils.safe_status_code(status_code):
             self._handle_status(status_code, body)
             return
 

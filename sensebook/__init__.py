@@ -8,6 +8,7 @@ from ._utils import (
     load_json,
     time_from_millis,
     random_hex,
+    safe_status_code,
 )
 from ._abc import State, Request
 
