@@ -4,7 +4,7 @@ import logging
 
 from typing import Optional, Dict, Iterable, Any, List
 
-from . import _utils, _abc, _backoff as backoff
+from . import _utils, _abc
 
 
 log = logging.getLogger(__name__)
@@ -20,6 +20,28 @@ class ProtocolError(Exception):
         else:
             self.type = None
         super().__init__(msg)
+
+
+class Backoff(Exception):
+    """Raised to signal the client to wait for the time specified by `delay`."""
+
+    max_time = 320
+    factor = 5
+
+    def __init__(self, message, *, delay):
+        super().__init__(message)
+        self.delay = delay
+
+    @classmethod
+    def from_tries(cls, message, *, tries):
+        if tries > 0:
+            # Exponential backoff
+            delay = min(cls.factor * 2 ** max(0, tries - 1), cls.max_time)
+            # Jitter
+            delay = delay * random.uniform(1.0, 1.5)
+        else:
+            delay = 0
+        return cls(message, delay=delay)
 
 
 @attr.s(slots=True, kw_only=True, frozen=True)
@@ -51,18 +73,11 @@ def parse_body(body: bytes) -> Dict[str, Any]:
 class PullHandler:
     # _state = attr.ib(type=_abc.State)
     mark_alive = attr.ib(False, type=bool)
-    _backoff = attr.ib(type=backoff.Backoff)
+    _backoff_tries = attr.ib(0, type=int)
     _clientid = attr.ib(type=str)
     _sticky_token = attr.ib(None, type=str)
     _sticky_pool = attr.ib(None, type=str)
     _seq = attr.ib(0, type=int)
-
-    @_backoff.default
-    def _default_backoff(self):
-        def jitter(value):
-            return value * random.uniform(1.0, 1.5)
-
-        return backoff.Backoff.expo(max_time=320, factor=5, jitter=jitter)
 
     @_clientid.default
     def _default_client_id(self):
@@ -86,8 +101,7 @@ class PullHandler:
             # In Facebook's JS code, this delay is set by their servers on every call to
             # `/ajax/presence/reconnect.php`, as `proxy_down_delay_millis`, but we'll
             # just set a sensible default
-            self._backoff.override(60)
-            log.error("Server is unavailable")
+            raise Backoff("Server is unavailable", delay=60)
         else:
             raise ProtocolError(
                 "Unknown server error response: {}".format(status_code), body
@@ -108,22 +122,24 @@ class PullHandler:
     # Type handlers
 
     def _handle_type_backoff(self, data):
-        log.warning("Server told us to back off")
-        self._backoff.do()
+        self._backoff_tries += 1
+        raise Backoff.from_tries(
+            "Server told us to back off", tries=self._backoff_tries
+        )
 
     def _handle_type_batched(self, data):
         for item in data["batches"]:
             yield from self._handle_data(item)
 
     def _handle_type_continue(self, data):
-        self._backoff.reset()
+        self._backoff_tries = 0
         raise ProtocolError("Unused protocol message `continue`", data)
 
     def _handle_type_fullReload(self, data):
         # Not yet sure what consequence this has.
         # But I know that if this is sent, then some messages/events may not have been
         # sent to us, so we should query for them with a graphqlbatch-something.
-        self._backoff.reset()
+        self._backoff_tries = 0
         if "ms" in data:
             return data["ms"]
 
@@ -138,7 +154,7 @@ class PullHandler:
             self._sticky_pool = lb_info["pool"]
 
     def _handle_type_msg(self, data):
-        self._backoff.reset()
+        self._backoff_tries = 0
         return data["ms"]
 
     def _handle_type_refresh(self, data):
@@ -156,11 +172,7 @@ class PullHandler:
 
     # Public methods
 
-    def get_delay(self) -> Optional[float]:
-        return self._backoff.get_randomized_delay()
-
     def next_request(self) -> _abc.Request:
-        self._backoff.reset_override()  # TODO: Not sure if putting this here is correct
         return PullRequest(
             params={
                 "clientid": self._clientid,
@@ -173,13 +185,12 @@ class PullHandler:
         )
 
     def handle_connection_error(self) -> None:
-        log.exception("Could not pull")
-        self._backoff.do()  # Unsure
+        self._backoff_tries += 1
+        raise Backoff.from_tries("Could not pull", tries=self._backoff_tries)  # Unsure
 
     def handle_connect_timeout(self) -> None:
-        log.exception("Connection lost")
         # Keep trying every minute
-        self._backoff.override(60)
+        raise Backoff("Connection lost", delay=60)
 
     def handle_read_timeout(self) -> None:
         log.debug("Read timeout")

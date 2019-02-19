@@ -7,9 +7,21 @@ def listener():
     return sensebook.PullHandler()
 
 
-def test_init():
-    sensebook.PullHandler()
-    sensebook.PullHandler(mark_alive=True)
+def test_parse_body():
+    assert sensebook._pull_handler.parse_body(b'for(;;);{"a":2}') == {"a": 2}
+
+
+def test_backoff_from_tries():
+    delay = sensebook.Backoff.from_tries(None, tries=0).delay
+    assert delay == 0.0
+    delay = sensebook.Backoff.from_tries(None, tries=1).delay
+    assert 7.5 > delay > 5.0
+    delay = sensebook.Backoff.from_tries(None, tries=2).delay
+    assert 15.0 > delay > 10.0
+    delay = sensebook.Backoff.from_tries(None, tries=3).delay
+    assert 30.0 > delay > 20.0
+    delay = sensebook.Backoff.from_tries(None, tries=10).delay
+    assert 480.0 > delay > 320.0
 
 
 @mark.parametrize(
@@ -20,6 +32,7 @@ def test_parse_seq(data, seq):
     assert listener._parse_seq(data) == seq
 
 
+@mark.raises(exception=sensebook.Backoff)
 def test_handle_status_503(listener):
     listener._handle_status(503, b"")
 
@@ -56,9 +69,9 @@ def test_handle_data_unknown_type(listener):
 # Type handlers
 
 
+@mark.raises(exception=sensebook.Backoff)
 def test_handle_type_backoff(listener):
     listener._handle_type_backoff({})
-    assert listener._backoff._tries == 1
 
 
 def test_handle_type_batched(listener, patcher):
@@ -114,10 +127,6 @@ def test_handle_type_test_streaming(listener):
 # Public methods
 
 
-def test_get_delay(listener):
-    assert listener.get_delay() is None
-
-
 def test_request():
     params = {
         "clientid": "deadbeef",
@@ -134,9 +143,17 @@ def test_request():
     assert request.params == params
 
 
-def test_handle_errors(listener):
+@mark.raises(exception=sensebook.Backoff)
+def test_handle_connection_error(listener):
     listener.handle_connection_error()
+
+
+@mark.raises(exception=sensebook.Backoff)
+def test_handle_connect_timeout(listener):
     listener.handle_connect_timeout()
+
+
+def test_handle_read_timeout(listener):
     listener.handle_read_timeout()
 
 
