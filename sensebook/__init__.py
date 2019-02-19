@@ -15,6 +15,6 @@ from ._abc import State, Request
 from ._login import LoginError
 from ._pull_handler import ProtocolError, Backoff, PullRequest, PullHandler
 
-__version__ = "0.1.2"
+__version__ = "0.2.0"
 
 __all__ = ()
