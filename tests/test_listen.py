@@ -52,11 +52,6 @@ def test_parse_body_invalid_json():
     sensebook._pull_handler.parse_body(b"invalid JSON")
 
 
-def test_handle_data(listener):
-    lst = [1, 2, 3]
-    assert list(listener._handle_data({"t": "msg", "ms": lst})) == lst
-
-
 @mark.raises(exception=sensebook.ProtocolError)
 def test_handle_unknown_data_type(listener):
     listener.handle_data({"t": "unknown"})
