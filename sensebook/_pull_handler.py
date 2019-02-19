@@ -22,8 +22,8 @@ class ProtocolError(Exception):
         super().__init__(msg)
 
 
-@attr.s(slots=True, kw_only=True)
-class PullRequest(_abc.ABCRequest):
+@attr.s(slots=True, kw_only=True, frozen=True)
+class PullRequest(_abc.Request):
     """Handles polling for events."""
 
     params = attr.ib(type=Dict[str, Any])
@@ -36,8 +36,24 @@ class PullRequest(_abc.ABCRequest):
     connect_timeout = 10  # TODO: Might be a bit too high
 
 
+def safe_status_code(status_code):
+    return 200 <= status_code < 300
+
+
+def parse_body(body: bytes) -> Dict[str, Any]:
+    try:
+        decoded = body.decode("utf-8")
+    except UnicodeDecodeError as e:
+        raise ProtocolError("Invalid unicode data", body) from e
+    try:
+        return _utils.load_json(_utils.strip_json_cruft(decoded))
+    except ValueError as e:
+        raise ProtocolError("Invalid JSON data", decoded) from e
+
+
 @attr.s(slots=True, kw_only=True)
-class Listener:
+class PullHandler:
+    _state = attr.ib(type=_abc.State)
     mark_alive = attr.ib(False, type=bool)
     _backoff = attr.ib(type=backoff.Backoff)
     _clientid = attr.ib(type=str)
@@ -69,10 +85,6 @@ class Listener:
             return int(data["seq"])
         return self._seq
 
-    @staticmethod
-    def _safe_status_code(status_code):
-        return 200 <= status_code < 300
-
     def _handle_status(self, status_code, body):
         if status_code == 503:
             # In Facebook's JS code, this delay is set by their servers on every call to
@@ -84,16 +96,6 @@ class Listener:
             raise ProtocolError(
                 "Unknown server error response: {}".format(status_code), body
             )
-
-    def _parse_body(self, body: bytes) -> Dict[str, Any]:
-        try:
-            decoded = body.decode("utf-8")
-        except UnicodeDecodeError as e:
-            raise ProtocolError("Invalid unicode data", body) from e
-        try:
-            return _utils.load_json(_utils.strip_json_cruft(decoded))
-        except ValueError as e:
-            raise ProtocolError("Invalid JSON data", body) from e
 
     def _handle_data(self, data: Dict[str, Any]) -> Iterable[Any]:
         # Don't worry if you've never seen a lot of these types, this is implemented
@@ -119,7 +121,7 @@ class Listener:
 
     def _handle_type_continue(self, data):
         self._backoff.reset()
-        raise ProtocolError("Unused protocol message `test_streaming`", data)
+        raise ProtocolError("Unused protocol message `continue`", data)
 
     def _handle_type_fullReload(self, data):
         # Not yet sure what consequence this has.
@@ -144,7 +146,7 @@ class Listener:
         return data["ms"]
 
     def _handle_type_refresh(self, data):
-        # We don't perform the call, it's quite complicated, and perhaps unnecessary?
+        # We won't perform the call, it's quite complicated, and perhaps unnecessary?
         raise ProtocolError(
             "The server told us to call `/ajax/presence/reconnect.php`."
             "This might mean our data representation is wrong!",
@@ -161,7 +163,7 @@ class Listener:
     def get_delay(self) -> Optional[float]:
         return self._backoff.get_randomized_delay()
 
-    def next_request(self) -> PullRequest:
+    def next_request(self) -> _abc.Request:
         self._backoff.reset_override()  # TODO: Not sure if putting this here is correct
         return PullRequest(
             params={
@@ -188,12 +190,17 @@ class Listener:
         # The server might not send data for a while, so we just try again
 
     def handle(self, status_code: int, body: bytes) -> Iterable[Any]:
-        """Handle pull protocol body, and yield data frames ready for further parsing"""
-        if not self._safe_status_code(status_code):
+        """Handle pull protocol body, and yield data frames ready for further parsing.
+
+        Raise:
+            `ProtocolError` if some assumption we made about Facebook's protocol was
+            wrong.
+        """
+        if not safe_status_code(status_code):
             self._handle_status(status_code, body)
             return
 
-        data = self._parse_body(body)
+        data = parse_body(body)
 
         yield from self._handle_data(data)
 

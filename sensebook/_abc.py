@@ -18,8 +18,9 @@ class State(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
 
-class ABCRequest(metaclass=abc.ABCMeta):
-    __slots__ = ()
+@attr.s(slots=True, kw_only=True, frozen=True)
+class Request(metaclass=abc.ABCMeta):
+    """Defines a generic way of specifying HTTP requests."""
 
     @property
     @abc.abstractmethod

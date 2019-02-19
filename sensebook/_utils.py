@@ -6,10 +6,10 @@ import urllib.parse
 
 from typing import Dict, Any, Tuple
 
-from .. import __version__
-
 
 def default_user_agent() -> str:
+    from . import __version__
+
     return "{}/{}".format(__name__.split(".")[0], __version__)
 
 
